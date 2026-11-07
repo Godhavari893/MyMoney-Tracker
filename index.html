@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#173b32">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>My Money Tracker</title>
+
+<style>
+:root { --head:#173b32; --accent:#1f6b50; --op:0.94; }
+* { box-sizing: border-box; }
+body { margin:0; font-family:Arial,sans-serif; background:#f2f5f1; color:#203128; }
+#wall { position:fixed; inset:0; z-index:-1; background-size:cover; background-position:center; }
+header { background:var(--head); color:#fff; padding:22px 16px; }
+header h1 { margin:0; font-size:23px; }
+header p { margin:7px 0 0; color:#ffffffb8; font-size:13px; }
+main { max-width:650px; margin:auto; padding:14px; }
+.card { background:rgba(255,255,255,var(--op)); padding:16px; border-radius:14px; margin-bottom:14px; box-shadow:0 2px 8px #0000000f; }
+h3 { font-size:15px; margin:0 0 13px; }
+.cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.metric { background:rgba(255,255,255,var(--op)); padding:14px; border-radius:12px; border:1px solid #e3eae3; min-width:0; }
+.metric p { margin:0; color:#718078; font-size:12px; }
+.metric h2 { font-size:19px; margin:7px 0 0; overflow-wrap:anywhere; }
+.hero { grid-column:1/-1; background:var(--head); color:#fff; border:none; }
+.hero p { color:#ffffffb8; }
+.hero h2 { font-size:30px; }
+.hero-set { grid-column:1/-1; }
+.hero small { font-size:11px; color:#ffffff99; }
+.field { margin-bottom:12px; }
+label { font-size:13px; font-weight:bold; display:block; }
+input, select, textarea, button { width:100%; padding:12px; border-radius:9px; font-size:15px; font-family:inherit; }
+input, select, textarea { border:1px solid #dce5dd; background:#fff; margin-top:5px; color:#203128; }
+input[type=color] { padding:3px; height:44px; }
+input[type=range] { padding:0; }
+button { background:var(--accent); color:#fff; border:none; font-weight:bold; margin-top:8px; cursor:pointer; }
+button:active { opacity:.8; }
+.secondary { background:#e8eee9; color:#234336; }
+.danger { background:#f8eaea; color:#a33333; }
+.small-button { width:auto; padding:8px 12px; font-size:12px; margin-top:8px; }
+.toolbar { display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:14px; }
+.toolbar input { background:#fff; }
+.toolbar button { width:auto; margin-top:5px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.full { grid-column:1/-1; }
+.muted { color:#718078; font-size:12px; line-height:1.5; }
+.transaction { padding:12px 0; border-bottom:1px solid #e7ece7; }
+.transaction:last-child { border-bottom:none; }
+.transaction-title { font-weight:bold; font-size:14px; overflow-wrap:anywhere; }
+.transaction-details { margin:5px 0; font-size:12px; color:#718078; overflow-wrap:anywhere; }
+.transaction-actions { display:flex; gap:7px; }
+.transaction-actions button { flex:1; }
+.pill { display:inline-block; padding:4px 8px; border-radius:20px; background:#e8f1e9; color:#315b43; font-size:11px; margin-top:5px; }
+.optional-pill { background:#fff0dc; color:#95601d; }
+.in-pill { background:#dff3e6; color:#17613a; }
+.green { color:#17803f; }
+.bar-row { margin:13px 0; }
+.bar-label { display:flex; justify-content:space-between; gap:8px; font-size:13px; }
+.bar-track { height:9px; margin-top:6px; border-radius:20px; background:#e9eee9; overflow:hidden; }
+.bar-fill { height:100%; background:var(--accent); border-radius:20px; }
+.empty { color:#718078; font-size:13px; padding:12px 0; }
+.notice { background:#f1f6f1; padding:11px; border-radius:9px; font-size:12px; line-height:1.5; margin-top:10px; }
+footer { color:#718078; font-size:11px; text-align:center; padding:12px 0 25px; }
+#toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#203128; color:#fff; padding:10px 16px; border-radius:20px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .25s; z-index:9; }
+#toast.show { opacity:1; }
+@media(max-width:370px) {
+  .form-grid { grid-template-columns:1fr; }
+  .full { grid-column:auto; }
+  .metric h2 { font-size:17px; }
+}
+</style>
+</head>
+
+<body>
+<div id="wall"></div>
+
+<header>
+  <h1 id="appTitle">My Money Tracker</h1>
+  <p id="appTagline">Track your spending. Build your savings.</p>
+</header>
+
+<main>
+
+  <div class="toolbar">
+    <input type="month" id="monthPicker">
+    <button type="button" class="secondary" id="thisMonth">This Month</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <section class="cards">
+    <div class="metric hero">
+      <p>💰 Money In Hand</p>
+      <h2 id="availMetric">₹0</h2>
+      <small>Opening balance + all money received − spent − moved to savings</small>
+    </div>
+    <div class="metric hero-set">
+      <p>Enter the money you have right now</p>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+        <input type="number" id="handInput" step="0.01" placeholder="e.g. 3500">
+        <button type="button" id="setHand" style="margin-top:5px;width:auto">Set Amount</button>
+      </div>
+      <p class="muted" style="margin-top:8px">Type what you actually have now (cash + bank). The app adjusts itself and updates as you add money received or spending. You can correct it anytime.</p>
+    </div>
+    <div class="metric"><p>Received This Month</p><h2 id="recMetric" class="green">₹0</h2></div>
+    <div class="metric"><p>Spent This Month</p><h2 id="expenseMetric">₹0</h2></div>
+    <div class="metric"><p>Saved This Month</p><h2 id="savingMetric">₹0</h2></div>
+    <div class="metric"><p>Left From This Month</p><h2 id="monthLeftMetric">₹0</h2></div>
+  </section>
+
+  <!-- MONEY RECEIVED -->
+  <section class="card">
+    <h3>⬇️ Money Received</h3>
+    <div class="form-grid">
+      <div class="field">
+        <label for="recDate">Date</label>
+        <input type="date" id="recDate">
+      </div>
+      <div class="field">
+        <label for="recAmount">Amount (₹)</label>
+        <input type="number" id="recAmount" min="0.01" step="0.01" placeholder="Enter amount">
+      </div>
+      <div class="field">
+        <label for="recFrom">Received From</label>
+        <input type="text" id="recFrom" list="fromList" maxlength="60" placeholder="Salary, family, friend...">
+        <datalist id="fromList">
+          <option>Salary</option><option>Family</option><option>Friend</option>
+          <option>Gift</option><option>Refund</option><option>Other</option>
+        </datalist>
+      </div>
+      <div class="field">
+        <label for="recNotes">Notes (Optional)</label>
+        <input type="text" id="recNotes" maxlength="100" placeholder="Any note">
+      </div>
+    </div>
+    <button type="button" id="addReceived">+ Save Received Money</button>
+    <div id="receivedList"></div>
+  </section>
+
+  <!-- ADD EXPENSE -->
+  <section class="card">
+    <h3 id="expenseFormTitle">Add New Expense</h3>
+    <form id="expenseForm">
+      <div class="form-grid">
+        <div class="field">
+          <label for="expenseDate">Date</label>
+          <input type="date" id="expenseDate" required>
+        </div>
+        <div class="field">
+          <label for="expenseAmount">Amount (₹)</label>
+          <input type="number" id="expenseAmount" min="0.01" step="0.01" placeholder="Enter amount" required>
+        </div>
+        <div class="field">
+          <label for="expenseCategory">Category</label>
+          <select id="expenseCategory">
+            <option>Travel</option><option>Food</option><option>Snacks / Tea</option>
+            <option>Family Contribution</option><option>Shopping</option><option>Mobile / Internet</option>
+            <option>Personal Care</option><option>Health</option><option>Entertainment</option>
+            <option>Education</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="expenseType">Spending Type</label>
+          <select id="expenseType">
+            <option value="Necessary">Necessary</option>
+            <option value="Optional">Optional</option>
+            <option value="Not classified">Not classified</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="expensePlace">Where did you spend? (Shop / Location)</label>
+          <input type="text" id="expensePlace" maxlength="100" placeholder="e.g. Canteen, Bus, Reliance Mart">
+        </div>
+        <div class="field">
+          <label for="expensePayment">Payment Method</label>
+          <select id="expensePayment">
+            <option>Cash</option><option>UPI</option><option>Debit Card</option>
+            <option>Other</option><option>Not recorded</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label for="expenseNotes">Notes (Optional)</label>
+          <textarea id="expenseNotes" rows="2" maxlength="200" placeholder="What was it for?"></textarea>
+        </div>
+      </div>
+      <button type="submit" id="expenseSubmit">+ Add Expense</button>
+      <button type="button" class="secondary" id="cancelEdit" hidden>Cancel Edit</button>
+    </form>
+  </section>
+
+  <!-- SAVINGS TRANSFER -->
+  <section class="card">
+    <h3>Actual Savings Transfer</h3>
+    <div class="form-grid">
+      <div class="field">
+        <label for="savingDate">Transfer Date</label>
+        <input type="date" id="savingDate">
+      </div>
+      <div class="field">
+        <label for="savingAmount">Amount (₹)</label>
+        <input type="number" id="savingAmount" min="0.01" step="0.01" placeholder="Enter amount">
+      </div>
+    </div>
+    <button type="button" id="addSaving">Record Savings Transfer</button>
+    <div id="savingList"></div>
+    <p class="notice">A transfer to your savings account is not an expense, but it does leave your Money In Hand. Record it here so it is not counted twice.</p>
+  </section>
+
+  <!-- ANALYSIS -->
+  <section class="card">
+    <h3>Spending Breakdown (by category)</h3>
+    <div id="breakdown"></div>
+    <div class="notice" id="insight">Your spending insights will appear here.</div>
+  </section>
+
+  <section class="card">
+    <h3>📍 Where I Spent The Money</h3>
+    <div id="placeBreakdown"></div>
+  </section>
+
+  <section class="card">
+    <h3>Expense History</h3>
+    <div id="expenseList"></div>
+  </section>
+
+  <!-- MONEY SETUP -->
+  <section class="card">
+    <h3>Money Setup</h3>
+    <div class="form-grid">
+      <div class="field">
+        <label for="openingInput">Opening Balance (₹)</label>
+        <input type="number" id="openingInput" step="1">
+      </div>
+      <div class="field">
+        <label for="travelBudgetInput">Travel Budget this month (₹)</label>
+        <input type="number" id="travelBudgetInput" min="0" step="1">
+      </div>
+    </div>
+    <button type="button" id="saveSetup">Save Setup</button>
+    <p class="muted">Opening balance is the money you already had before you started using this app. Add salary and other money under "Money Received".</p>
+  </section>
+
+  <!-- CUSTOMIZE -->
+  <section class="card">
+    <h3>🎨 Make It Yours</h3>
+    <div class="form-grid">
+      <div class="field">
+        <label for="setName">App Name</label>
+        <input type="text" id="setName" maxlength="40">
+      </div>
+      <div class="field">
+        <label for="setTagline">Tagline</label>
+        <input type="text" id="setTagline" maxlength="70">
+      </div>
+      <div class="field">
+        <label for="setHead">Header Colour</label>
+        <input type="color" id="setHead">
+      </div>
+      <div class="field">
+        <label for="setAccent">Button / Bar Colour</label>
+        <input type="color" id="setAccent">
+      </div>
+      <div class="field full">
+        <label for="setOpacity">Card transparency (slide left to see more wallpaper)</label>
+        <input type="range" id="setOpacity" min="0.45" max="1" step="0.01">
+      </div>
+      <div class="field full">
+        <label for="setWall">Wallpaper (choose a photo from your phone)</label>
+        <input type="file" id="setWall" accept="image/*">
+      </div>
+    </div>
+    <button type="button" class="secondary" id="removeWall">Remove Wallpaper</button>
+    <button type="button" class="secondary" id="resetLook">Reset Look To Default</button>
+  </section>
+
+  <!-- BACKUP -->
+  <section class="card">
+    <h3>Backup and Restore</h3>
+    <button type="button" class="secondary" id="exportCSV">Download Monthly CSV</button>
+    <button type="button" class="secondary" id="exportBackup">Download Full Backup</button>
+    <div class="field" style="margin-top:14px">
+      <label for="importFile">Restore Backup (JSON)</label>
+      <input type="file" id="importFile" accept=".json,application/json">
+    </div>
+    <p class="muted">Backups hold your money data and look settings (not the wallpaper photo). Keep them private and safe. Do this regularly, because clearing browser data erases the app's records.</p>
+    <button type="button" class="danger" id="clearMonth">Delete This Month's Data</button>
+  </section>
+
+  <footer>
+    Offline Personal Finance Tracker<br>
+    Your financial data stays on this device.
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ======================================
+// 1. DATA AND STORAGE
+// ======================================
+const STORAGE_KEY = "myMoneyTracker_v2";   // same key as before, so old data is kept
+const WALL_KEY = "myMoneyTracker_wallpaper";
+const DEFAULT_LOOK = {
+  appName: "My Money Tracker",
+  tagline: "Track your spending. Build your savings.",
+  head: "#173b32", accent: "#1f6b50", opacity: 0.94
+};
+
+let db = { months: {}, expenses: [], savings: [], received: [], settings: { ...DEFAULT_LOOK, opening: 0 } };
+let editingExpenseId = null;
+
+function fixShape(d) {
+  d.months = d.months || {};
+  d.expenses = Array.isArray(d.expenses) ? d.expenses : [];
+  d.savings = Array.isArray(d.savings) ? d.savings : [];
+  d.received = Array.isArray(d.received) ? d.received : [];
+  d.settings = { ...DEFAULT_LOOK, opening: 0, ...(d.settings || {}) };
+  return d;
+}
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const p = JSON.parse(saved);
+      if (p && Array.isArray(p.expenses) && Array.isArray(p.savings) && p.months && typeof p.months === "object") {
+        return fixShape(p);
+      }
+    }
+  } catch (e) {
+    alert("There was a problem loading saved data. Do not clear browser storage. Check your backup.");
+    console.error(e);
+  }
+  return db;
+}
+db = loadData();
+
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); return true; }
+  catch (e) { alert("Could not save data. Check available browser storage."); console.error(e); return false; }
+}
+
+// ======================================
+// 2. HELPERS
+// ======================================
+const $ = id => document.getElementById(id);
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+function getToday() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+const getCurrentMonth = () => getToday().slice(0, 7);
+const selectedMonth = () => $("monthPicker").value || getCurrentMonth();
+
+function formatMoney(a) {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(a) || 0);
+}
+const sum = arr => arr.reduce((s, x) => s + Number(x.amount), 0);
+const inMonth = (item, m) => typeof item.date === "string" && item.date.slice(0, 7) === m;
+
+function getMonthSetup() {
+  const m = selectedMonth();
+  if (!db.months[m]) db.months[m] = { travelBudget: 2000 };
+  if (db.months[m].travelBudget === undefined) db.months[m].travelBudget = 2000;
+  return db.months[m];
+}
+
+function downloadFile(name, content, type) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function mk(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function newId(prefix) {
+  return prefix + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+}
+
+// ======================================
+// 3. LOOK: NAME, COLOURS, WALLPAPER
+// ======================================
+function applyLook() {
+  const s = db.settings;
+  document.documentElement.style.setProperty("--head", s.head);
+  document.documentElement.style.setProperty("--accent", s.accent);
+  document.documentElement.style.setProperty("--op", s.opacity);
+  $("appTitle").textContent = s.appName;
+  $("appTagline").textContent = s.tagline;
+  document.title = s.appName;
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", s.head);
+  let wall = "";
+  try { wall = localStorage.getItem(WALL_KEY) || ""; } catch (e) {}
+  $("wall").style.backgroundImage = wall ? "url(" + wall + ")" : "none";
+}
+
+function fillLookForm() {
+  const s = db.settings;
+  $("setName").value = s.appName;
+  $("setTagline").value = s.tagline;
+  $("setHead").value = s.head;
+  $("setAccent").value = s.accent;
+  $("setOpacity").value = s.opacity;
+}
+
+[["setName", "appName"], ["setTagline", "tagline"], ["setHead", "head"], ["setAccent", "accent"]].forEach(([id, key]) => {
+  $(id).addEventListener("input", () => {
+    db.settings[key] = $(id).value || DEFAULT_LOOK[key];
+    applyLook(); saveData();
+  });
+});
+$("setOpacity").addEventListener("input", () => {
+  db.settings.opacity = Number($("setOpacity").value);
+  applyLook(); saveData();
+});
+
+// Shrink the chosen photo so it fits in phone storage.
+$("setWall").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const scale = Math.min(1, 1000 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    try {
+      localStorage.setItem(WALL_KEY, c.toDataURL("image/jpeg", 0.7));
+      applyLook(); toast("Wallpaper set!");
+    } catch (err) { alert("Photo too large to save. Try a smaller one."); }
+  };
+  img.onerror = () => alert("Could not read that image.");
+  img.src = url;
+  e.target.value = "";
+});
+
+$("removeWall").addEventListener("click", () => {
+  try { localStorage.removeItem(WALL_KEY); } catch (e) {}
+  applyLook(); toast("Wallpaper removed");
+});
+
+$("resetLook").addEventListener("click", () => {
+  if (!confirm("Reset name, colours and transparency to default?")) return;
+  Object.assign(db.settings, DEFAULT_LOOK);
+  saveData(); fillLookForm(); applyLook();
+});
+
+// ======================================
+// 4. MONEY SETUP
+// ======================================
+function renderSetup() {
+  $("openingInput").value = db.settings.opening;
+  $("travelBudgetInput").value = getMonthSetup().travelBudget;
+}
+
+$("saveSetup").addEventListener("click", () => {
+  const opening = Number($("openingInput").value);
+  const travel = Number($("travelBudgetInput").value);
+  if (!Number.isFinite(opening) || !Number.isFinite(travel) || travel < 0) {
+    alert("Enter valid amounts."); return;
+  }
+  db.settings.opening = opening;
+  db.months[selectedMonth()] = { travelBudget: travel };
+  if (!saveData()) return;
+  render(); toast("Setup saved!");
+});
+
+// Set "Money In Hand" directly: works out the opening balance for you.
+$("setHand").addEventListener("click", () => {
+  const typed = $("handInput").value;
+  const target = Number(typed);
+  if (typed === "" || !Number.isFinite(target)) { alert("Enter the amount you have right now."); return; }
+  const oldOpening = db.settings.opening;
+  db.settings.opening = target - (sum(db.received) - sum(db.expenses) - sum(db.savings));
+  if (!saveData()) { db.settings.opening = oldOpening; return; }
+  $("handInput").value = "";
+  render(); toast("Money In Hand set to " + formatMoney(target));
+});
+
+// ======================================
+// 5. MONEY RECEIVED
+// ======================================
+$("addReceived").addEventListener("click", () => {
+  const date = $("recDate").value;
+  const amount = Number($("recAmount").value);
+  if (!date || !Number.isFinite(amount) || amount <= 0) {
+    alert("Enter a valid date and amount."); return;
+  }
+  db.received.push({
+    id: newId("in"), date, amount,
+    from: $("recFrom").value.trim() || "Not recorded",
+    notes: $("recNotes").value.trim()
+  });
+  if (!saveData()) { db.received.pop(); return; }
+  $("recAmount").value = ""; $("recFrom").value = ""; $("recNotes").value = "";
+  render(); toast("Received money saved!");
+});
+
+function deleteReceived(id) {
+  if (!confirm("Delete this received entry?")) return;
+  const old = db.received.slice();
+  db.received = db.received.filter(x => x.id !== id);
+  if (!saveData()) { db.received = old; return; }
+  render();
+}
+
+function renderReceived(list) {
+  const box = $("receivedList");
+  box.replaceChildren();
+  if (!list.length) { box.appendChild(mk("div", "empty", "No money received this month.")); return; }
+  list.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach(r => {
+    const item = mk("div", "transaction");
+    item.appendChild(mk("div", "transaction-title green", "+ " + formatMoney(r.amount)));
+    item.appendChild(mk("div", "transaction-details", r.date + " · from " + r.from));
+    item.appendChild(mk("span", "pill in-pill", "Received"));
+    if (r.notes) item.appendChild(mk("div", "transaction-details", r.notes));
+    const del = mk("button", "danger small-button", "Delete");
+    del.addEventListener("click", () => deleteReceived(r.id));
+    item.appendChild(del);
+    box.appendChild(item);
+  });
+}
+
+// ======================================
+// 6. EXPENSES
+// ======================================
+function resetExpenseForm() {
+  editingExpenseId = null;
+  $("expenseForm").reset();
+  $("expenseDate").value = getToday();
+  $("expenseFormTitle").textContent = "Add New Expense";
+  $("expenseSubmit").textContent = "+ Add Expense";
+  $("cancelEdit").hidden = true;
+}
+
+$("expenseForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const date = $("expenseDate").value;
+  const amount = Number($("expenseAmount").value);
+  if (!date || !Number.isFinite(amount) || amount <= 0) {
+    alert("Please enter a valid date and amount."); return;
+  }
+  const wasEditing = editingExpenseId !== null;
+  const old = db.expenses.slice();
+  const expense = {
+    id: editingExpenseId || newId("expense"),
+    date, amount,
+    category: $("expenseCategory").value,
+    kind: $("expenseType").value,
+    place: $("expensePlace").value.trim(),
+    payment: $("expensePayment").value,
+    notes: $("expenseNotes").value.trim()
+  };
+  if (wasEditing) {
+    const i = db.expenses.findIndex(x => x.id === editingExpenseId);
+    if (i === -1) { alert("Expense not found."); return; }
+    db.expenses[i] = expense;
+  } else {
+    db.expenses.push(expense);
+  }
+  if (!saveData()) { db.expenses = old; return; }
+  resetExpenseForm(); render();
+  toast(wasEditing ? "Expense updated!" : "Expense added!");
+});
+
+function editExpense(id) {
+  const x = db.expenses.find(i => i.id === id);
+  if (!x) { alert("Expense not found."); return; }
+  editingExpenseId = x.id;
+  $("expenseDate").value = x.date;
+  $("expenseAmount").value = x.amount;
+  $("expenseCategory").value = x.category;
+  $("expenseType").value = x.kind || "Not classified";
+  $("expensePlace").value = x.place || "";
+  $("expensePayment").value = x.payment || "Not recorded";
+  $("expenseNotes").value = x.notes || "";
+  $("expenseFormTitle").textContent = "Edit Expense";
+  $("expenseSubmit").textContent = "Save Changes";
+  $("cancelEdit").hidden = false;
+  $("expenseForm").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function deleteExpense(id) {
+  if (!confirm("Delete this expense permanently?")) return;
+  const old = db.expenses.slice();
+  db.expenses = db.expenses.filter(x => x.id !== id);
+  if (!saveData()) { db.expenses = old; return; }
+  render();
+}
+
+$("cancelEdit").addEventListener("click", resetExpenseForm);
+
+function renderExpenses(list) {
+  const box = $("expenseList");
+  box.replaceChildren();
+  if (!list.length) { box.appendChild(mk("div", "empty", "No expenses recorded this month.")); return; }
+  list.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach(x => {
+    const item = mk("div", "transaction");
+    item.appendChild(mk("div", "transaction-title", x.category + " — " + formatMoney(x.amount)));
+    item.appendChild(mk("div", "transaction-details",
+      x.date + " · " + (x.place || "No location") + " · " + (x.payment || "Not recorded")));
+    item.appendChild(mk("span", x.kind === "Optional" ? "pill optional-pill" : "pill", x.kind || "Not classified"));
+    if (x.notes) item.appendChild(mk("div", "transaction-details", x.notes));
+    const actions = mk("div", "transaction-actions");
+    const edit = mk("button", "secondary small-button", "Edit");
+    edit.addEventListener("click", () => editExpense(x.id));
+    const del = mk("button", "danger small-button", "Delete");
+    del.addEventListener("click", () => deleteExpense(x.id));
+    actions.appendChild(edit); actions.appendChild(del);
+    item.appendChild(actions);
+    box.appendChild(item);
+  });
+}
+
+// ======================================
+// 7. SAVINGS TRANSFERS
+// ======================================
+$("addSaving").addEventListener("click", () => {
+  const date = $("savingDate").value;
+  const amount = Number($("savingAmount").value);
+  if (!date || !Number.isFinite(amount) || amount <= 0) {
+    alert("Enter a valid savings date and amount."); return;
+  }
+  db.savings.push({ id: newId("saving"), date, amount });
+  if (!saveData()) { db.savings.pop(); return; }
+  $("savingAmount").value = "";
+  render(); toast("Savings transfer recorded!");
+});
+
+function deleteSaving(id) {
+  if (!confirm("Delete this savings transfer?")) return;
+  const old = db.savings.slice();
+  db.savings = db.savings.filter(x => x.id !== id);
+  if (!saveData()) { db.savings = old; return; }
+  render();
+}
+
+function renderSavings(list) {
+  const box = $("savingList");
+  box.replaceChildren();
+  if (!list.length) { box.appendChild(mk("div", "empty", "No savings transfers recorded.")); return; }
+  list.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach(s => {
+    const item = mk("div", "transaction");
+    item.appendChild(mk("div", "transaction-title", formatMoney(s.amount)));
+    item.appendChild(mk("div", "transaction-details", s.date));
+    const del = mk("button", "danger small-button", "Delete");
+    del.addEventListener("click", () => deleteSaving(s.id));
+    item.appendChild(del);
+    box.appendChild(item);
+  });
+}
+
+// ======================================
+// 8. BREAKDOWNS
+// ======================================
+function drawBars(box, entries, total, emptyText) {
+  box.replaceChildren();
+  if (!entries.length) { box.appendChild(mk("div", "empty", emptyText)); return; }
+  entries.forEach(([name, amount]) => {
+    const row = mk("div", "bar-row");
+    const label = mk("div", "bar-label");
+    label.appendChild(mk("span", "", name));
+    label.appendChild(mk("strong", "", formatMoney(amount)));
+    const track = mk("div", "bar-track");
+    const fill = mk("div", "bar-fill");
+    fill.style.width = total > 0 ? Math.min(100, amount / total * 100) + "%" : "0%";
+    track.appendChild(fill);
+    row.appendChild(label); row.appendChild(track);
+    box.appendChild(row);
+  });
+}
+
+function groupBy(list, keyFn) {
+  const g = {};
+  list.forEach(x => { const k = keyFn(x); g[k] = (g[k] || 0) + Number(x.amount); });
+  return Object.entries(g).sort((a, b) => b[1] - a[1]);
+}
+
+function renderBreakdown(list, setup, total, received) {
+  drawBars($("breakdown"), groupBy(list, x => x.category || "Other"), total, "Your spending breakdown will appear here.");
+
+  // Group places ignoring capital letters, show the first spelling used.
+  const seen = {};
+  const placeEntries = groupBy(list, x => {
+    const raw = (x.place || "").trim();
+    if (!raw) return "No location given";
+    const key = raw.toLowerCase();
+    seen[key] = seen[key] || raw;
+    return seen[key];
+  });
+  drawBars($("placeBreakdown"), placeEntries, total, "Add a shop or location to your expenses to see where your money goes.");
+
+  const optional = sum(list.filter(x => x.kind === "Optional"));
+  const travel = sum(list.filter(x => x.category === "Travel"));
+  const msgs = [
+    "Optional spending: " + formatMoney(optional) + ".",
+    "Travel spending: " + formatMoney(travel) + " out of " + formatMoney(setup.travelBudget) + " budget."
+  ];
+  if (travel > Number(setup.travelBudget)) msgs.push("Your travel spending is above your budget.");
+  const left = received - total;
+  msgs.push(left < 0
+    ? "This month you spent " + formatMoney(-left) + " more than you received."
+    : "This month you have " + formatMoney(left) + " left from what you received.");
+  msgs.push("Review optional purchases to identify possible savings.");
+  $("insight").textContent = msgs.join(" ");
+}
+
+// ======================================
+// 9. DASHBOARD
+// ======================================
+function render() {
+  const m = selectedMonth();
+  const setup = getMonthSetup();
+  const mExp = db.expenses.filter(x => inMonth(x, m));
+  const mSav = db.savings.filter(x => inMonth(x, m));
+  const mRec = db.received.filter(x => inMonth(x, m));
+  const spent = sum(mExp), saved = sum(mSav), got = sum(mRec);
+
+  const available = Number(db.settings.opening) + sum(db.received) - sum(db.expenses) - sum(db.savings);
+
+  $("availMetric").textContent = formatMoney(available);
+  $("recMetric").textContent = formatMoney(got);
+  $("expenseMetric").textContent = formatMoney(spent);
+  $("savingMetric").textContent = formatMoney(saved);
+  $("monthLeftMetric").textContent = formatMoney(got - spent - saved);
+
+  renderSetup();
+  renderReceived(mRec);
+  renderExpenses(mExp);
+  renderSavings(mSav);
+  renderBreakdown(mExp, setup, spent, got);
+}
+
+// ======================================
+// 10. MONTH SELECTION
+// ======================================
+$("monthPicker").value = getCurrentMonth();
+$("monthPicker").addEventListener("change", () => { resetExpenseForm(); render(); });
+$("thisMonth").addEventListener("click", () => {
+  $("monthPicker").value = getCurrentMonth();
+  resetExpenseForm(); render();
+});
+
+// ======================================
+// 11. EXPORT, BACKUP, RESTORE, DELETE MONTH
+// ======================================
+$("exportCSV").addEventListener("click", () => {
+  const m = selectedMonth();
+  const rows = [["Date", "Kind", "Amount INR", "Category / From", "Type", "Place", "Payment", "Notes"]];
+  db.received.filter(x => inMonth(x, m)).forEach(x =>
+    rows.push([x.date, "Received", x.amount, x.from, "", "", "", x.notes]));
+  db.expenses.filter(x => inMonth(x, m)).forEach(x =>
+    rows.push([x.date, "Spent", x.amount, x.category, x.kind, x.place, x.payment, x.notes]));
+  db.savings.filter(x => inMonth(x, m)).forEach(x =>
+    rows.push([x.date, "Savings transfer", x.amount, "", "", "", "", ""]));
+  const csv = rows.map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n");
+  downloadFile("money-" + m + ".csv", "\ufeff" + csv, "text/csv;charset=utf-8;");
+});
+
+$("exportBackup").addEventListener("click", () => {
+  downloadFile("money-tracker-backup.json", JSON.stringify(db, null, 2), "application/json");
+});
+
+$("importFile").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const imported = JSON.parse(await file.text());
+    if (!imported || !imported.months || typeof imported.months !== "object" ||
+        !Array.isArray(imported.expenses) || !Array.isArray(imported.savings)) {
+      throw new Error("Invalid backup format.");
+    }
+    if (!confirm("Restore this backup? Your currently stored data will be replaced.")) {
+      e.target.value = ""; return;
+    }
+    const oldData = db;
+    db = fixShape(imported);
+    if (!saveData()) { db = oldData; return; }
+    resetExpenseForm(); fillLookForm(); applyLook(); render();
+    toast("Backup restored!");
+  } catch (err) {
+    alert("Could not restore this file. Please select a valid JSON backup.");
+    console.error(err);
+  }
+  e.target.value = "";
+});
+
+$("clearMonth").addEventListener("click", () => {
+  const m = selectedMonth();
+  if (!confirm("Delete all expenses, received money, savings transfers and settings for " + m +
+               "? This cannot be undone without a backup.")) return;
+  const oldData = JSON.parse(JSON.stringify(db));
+  db.expenses = db.expenses.filter(x => !inMonth(x, m));
+  db.savings = db.savings.filter(x => !inMonth(x, m));
+  db.received = db.received.filter(x => !inMonth(x, m));
+  delete db.months[m];
+  if (!saveData()) { db = oldData; return; }
+  resetExpenseForm(); render();
+  toast("Month deleted");
+});
+
+// ======================================
+// 12. START + OFFLINE SUPPORT
+// ======================================
+$("expenseDate").value = getToday();
+$("savingDate").value = getToday();
+$("recDate").value = getToday();
+fillLookForm();
+applyLook();
+render();
+
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  // Only register if sw.js is really being served as JavaScript.
+  fetch("sw.js").then(r => {
+    if (r.ok && (r.headers.get("content-type") || "").includes("javascript")) {
+      return navigator.serviceWorker.register("sw.js");
+    }
+    console.warn("sw.js not found next to index.html, offline mode is off.");
+  }).catch(() => console.warn("Offline mode not available here."));
+}
+</script>
+</body>
+</html>
